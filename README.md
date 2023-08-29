@@ -24,5 +24,21 @@ The model can be trained with the following command and MNIST will download auto
 python train.py -ckpt CHECKPOINTING_PATH -d MNIST_DOWNLOAD_PATH
 ```
 
+### Experiments
 
+#### Binarised MNIST
+
+This method considers the pixel intensities as Bernoulli probabilities, 
+think of this like the likelihood of it being the likelihood of something being true.
+Since the pixel values can be interpreted as probabilities, 
+the task can be trained on the Bayesian Flow discrete data loss. 
+
+The sampling method will then return a shape which matches MNIST spatial dimensions and a final probaility dimension.
+The final dimension will contain two probabilities; probability of pixel on/high, and the probability of pix off/low.
+So convert this back to pixel intensity we can just take the channel indicating pixel on/high.
+
+<p align="center">
+  <img src="resources/binarised/epoch-99_steps-1000.gif" alt="Animated GIF">
+  <br>Binarised MNIST sampling after 100 epochs of training, using 1000 sampling steps.
+</p>
 
