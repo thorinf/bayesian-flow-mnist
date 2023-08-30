@@ -35,7 +35,7 @@ def train():
     model = UNet(dropout_prob=0.5)
     model.to(device)
 
-    bayesian_flow = BayesianFlow(model, num_classes=2, beta=3.0, reduced_features_binary=True)
+    bayesian_flow = BayesianFlow(num_classes=2, beta=3.0, reduced_features_binary=True)
 
     if os.path.exists(args.checkpoint):
         print(f"Restoring Checkpoint: {args.checkpoint}.")
@@ -89,7 +89,7 @@ def train():
             data = data.to(device)
             labels = labels.to(device)
 
-            loss = bayesian_flow.discrete_data_continuous_loss(data, labels=labels)
+            loss = bayesian_flow.discrete_data_continuous_loss(model, data, labels=labels)
 
             pbar.set_postfix({
                 "loss": loss.item()
@@ -119,6 +119,7 @@ def train():
         model.eval()
         with torch.no_grad():
             probs_list = bayesian_flow.discrete_data_sample(
+                model=model,
                 size=(16, 28, 28),
                 labels=labels,
                 num_steps=num_steps,

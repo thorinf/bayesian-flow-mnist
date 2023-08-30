@@ -39,6 +39,6 @@ So convert this back to pixel intensity we can just take the channel indicating 
 
 <p align="center">
   <img src="resources/binarised/epoch-99_steps-1000.gif" alt="Animated GIF">
-  <br>Binarised MNIST sampling after 100 epochs of training, using 1000 sampling steps.
+  <br>Binarised MNIST sampling after 100 epochs of training, using 1000 sampling steps, '-1' unconditional generation.
 </p>
 
