@@ -1,3 +1,10 @@
+import torch
+import torch.nn as nn
+
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+
 def append_dims(tensor, target_dims):
     assert isinstance(target_dims, int), f"Expected 'target_dims' to be an integer, but received {type(target_dims)}."
     tensor_dims = tensor.ndim
@@ -5,12 +12,14 @@ def append_dims(tensor, target_dims):
     return tensor[(...,) + (None,) * (target_dims - tensor_dims)]
 
 
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-
-
-def count_parameters(model):
+def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+@torch.no_grad()
+def update_model_ema(model: nn.Module, ema_model: nn.Module, mu: float = 0.95) -> None:
+    for weight, ema_weight in zip(model.parameters(), ema_model.parameters()):
+        ema_weight.mul_(mu).add_(weight, alpha=1 - mu)
 
 
 def strided_sample(list_all, n=10):

@@ -11,7 +11,7 @@ import argparse
 
 from model import UNet
 from bayesian_flow_torch import BayesianFlow
-from utils import count_parameters, strided_sample, plot_images, plot_images_animation
+from utils import count_parameters, update_model_ema, strided_sample, plot_images, plot_images_animation
 
 
 def train():
@@ -49,6 +49,14 @@ def train():
 
     num_params = count_parameters(model)
     print(f"Total number of parameters: {num_params:,}")
+
+    ema_model = UNet(dropout_prob=0.5)
+    ema_model.to(device)
+
+    if 'ema_model_state_dict' in checkpoint:
+        ema_model.load_state_dict(checkpoint['ema_model_state_dict'])
+    else:
+        ema_model.load_state_dict(model.state_dict())
 
     dataset = torchvision.datasets.MNIST(
         root=args.data_path,
@@ -100,12 +108,14 @@ def train():
             if ((idx + 1) % args.accumulation_steps == 0) or (idx + 1 == len(dataloader)):
                 optim.step()
                 optim.zero_grad()
+                update_model_ema(model, ema_model, 0.95)
                 global_step += 1
 
         checkpoint = {
             'epochs': ep + 1,
             'global_step': global_step,
             'model_state_dict': model.state_dict(),
+            'ema_model_state_dict': ema_model.state_dict(),
             'optimizer_state_dict': optim.state_dict()
         }
         torch.save(checkpoint, args.checkpoint)
@@ -116,10 +126,10 @@ def train():
         num_steps = 1000
         labels = torch.tensor([x if x < 10 else -1 for x in range(16)], dtype=torch.int64, device=device)
 
-        model.eval()
+        ema_model.eval()
         with torch.no_grad():
             probs_list = bayesian_flow.discrete_data_sample(
-                model=model,
+                model=ema_model,
                 size=(16, 28, 28),
                 labels=labels,
                 num_steps=num_steps,
