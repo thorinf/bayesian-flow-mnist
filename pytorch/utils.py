@@ -12,10 +12,6 @@ def append_dims(tensor, target_dims):
     return tensor[(...,) + (None,) * (target_dims - tensor_dims)]
 
 
-def count_parameters(model: nn.Module) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
 @torch.no_grad()
 def update_model_ema(model: nn.Module, ema_model: nn.Module, mu: float = 0.95) -> None:
     for weight, ema_weight in zip(model.parameters(), ema_model.parameters()):
@@ -24,7 +20,8 @@ def update_model_ema(model: nn.Module, ema_model: nn.Module, mu: float = 0.95) -
 
 def strided_sample(list_all, n=10):
     len_all = len(list_all)
-    assert len_all >= n, "List length should be at least the number of samples required."
+    if len_all <= n:
+        return list_all
     stride = round((len_all - 1) / (n - 1))
     sampled = [list_all[i * stride] for i in range(n - 1)] + [list_all[-1]]
     return sampled

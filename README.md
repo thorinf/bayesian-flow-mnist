@@ -3,7 +3,10 @@
 A simple <a href="https://arxiv.org/abs/2308.07037">Bayesian Flow</a> model for MNIST in Pytorch.
 
 - [x] Binarised MNIST generation using Bayesian Flow Discrete Data Loss
-- [ ] Continuous MNIST generation using Bayesian Flow Continuous Data Loss
+- [x] Continuous MNIST generation using Bayesian Flow Continuous Data Loss
+
+This implementation could definitely be factorised, or include more features, 
+but the intention is to make something minimal.
 
 ## How to Run
 
@@ -40,5 +43,17 @@ So convert this back to pixel intensity we can just take the channel indicating 
 <p align="center">
   <img src="resources/binarised/epoch-99_steps-1000.gif" alt="Animated GIF">
   <br>Binarised MNIST sampling after 100 epochs of training, using 1000 sampling steps, '-1' unconditional generation.
+</p>
+
+#### Continuous MNIST (Experimental)
+
+This is a more typical generative method for MNIST. The data is scaled to be [-1,1], and nothing more.
+This part of the implementation is experimental, and, as you can see below, the results could be improved.
+Trying different values of sigma, or dropout, may yield a better generation. Note, a sigma value of 0.01 resulted 
+in the loss being NaN about halfway through training. 
+
+<p align="center">
+  <img src="resources/continuous/epoch-99_steps-1000.gif" alt="Animated GIF">
+  <br>Continuous MNIST sampling after 100 epochs of training, using 1000 sampling steps, '-1' unconditional generation.
 </p>
 
