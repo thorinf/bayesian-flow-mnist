@@ -22,7 +22,7 @@ def main():
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = UNet(dropout_prob=0.5)
+    model = UNet(dropout_prob=0.2)
     model.to(device)
 
     if args.train_type == TrainType.BINARISED:
@@ -32,12 +32,12 @@ def main():
         bayesian_flow = BayesianFlow(sigma=0.001)
 
     else:
-        NotImplementedError(f"training not implemented for {args.train_type}")
+        raise NotImplementedError(f"training not implemented for {args.train_type}")
 
     num_params = sum(p.numel() for p in model.parameters())
     print(f"total parameter count: {num_params:,}")
 
-    ema_model = UNet(dropout_prob=0.5)
+    ema_model = UNet()
     ema_model.to(device)
 
     dataset = torchvision.datasets.MNIST(
@@ -81,12 +81,8 @@ def main():
     else:
         ema_model.load_state_dict(model.state_dict())
 
-    global_step = checkpoint.get('global_step', 0)
-
-    for ep in range(checkpoint.get('epochs', 0), args.epochs):
-        pbar = tqdm(dataloader)
-        pbar.set_description(f"epoch: {ep}")
-
+    for ep in range(checkpoint.get('epochs', 1), args.epochs + 1):
+        pbar, n_iter = tqdm(dataloader, total=len(dataloader), desc=f"epoch {ep}"), 0
         model.train()
         for idx, (data, labels) in enumerate(pbar):
             data, labels = data.permute(0, 2, 3, 1).to(device), labels.to(device)
@@ -98,27 +94,30 @@ def main():
                 data = data * 2 - 1
                 loss = bayesian_flow.continuous_data_continuous_loss(model, data, labels=labels)
 
-            pbar.set_postfix({"loss": loss.item()})
+            else:
+                raise NotImplementedError(f"training not implemented for {args.train_type}")
 
-            (loss / args.accumulation_steps).backward()
+            pbar.set_postfix({'loss': loss.item()})
 
-            if ((idx + 1) % args.accumulation_steps == 0) or (idx + 1 == len(dataloader)):
+            if not torch.isnan(loss).any():
+                (loss / args.accumulation_steps).backward()
+                n_iter += 1
+
+            if ((n_iter + 1) % args.accumulation_steps == 0) or (n_iter + 1 == len(dataloader)):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optim.step()
                 optim.zero_grad()
                 update_model_ema(model, ema_model, 0.95)
-                global_step += 1
 
         checkpoint = {
-            'epochs': ep + 1,
-            'global_step': global_step,
+            'epochs': ep,
             'model_state_dict': model.state_dict(),
             'ema_model_state_dict': ema_model.state_dict(),
             'optimizer_state_dict': optim.state_dict()
         }
         torch.save(checkpoint, args.checkpoint)
 
-        if (ep + 1) % 5 != 0:
+        if ep % 5 != 0:
             continue
 
         num_steps = 1000
@@ -136,7 +135,7 @@ def main():
                     device=device
                 )
                 probs_list = strided_sample(probs_list, 20)
-                x_list = [probs.clamp(0.0, 1.0).cpu().numpy() for probs in probs_list]
+                x_list = [probs[..., :1].clamp(0.0, 1.0).cpu().numpy() for probs in probs_list]
 
             elif args.train_type == TrainType.CONTINUOUS:
                 x_hat_list = bayesian_flow.continuous_data_sample(
@@ -149,6 +148,9 @@ def main():
                 )
                 x_hat_list = strided_sample(x_hat_list, 20)
                 x_list = [((x + 1) / 2).clamp(0.0, 1.0).cpu().numpy() for x in x_hat_list]
+
+            else:
+                raise NotImplementedError(f"training not implemented for {args.train_type}")
 
         plot_images(
             images=x_list[-1],
@@ -169,16 +171,16 @@ def main():
 
 def create_argparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-ep', '--epochs', type=int, default=100)
+    parser.add_argument('-ep', '--epochs', type=int, default=50)
     parser.add_argument('-b', '--batch_size', type=int, default=512)
-    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
-    parser.add_argument('-wd', '--weight_decay', type=float, default=1e-2)
+    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-3)
+    parser.add_argument('-wd', '--weight_decay', type=float, default=0.0)
     parser.add_argument('-acc', '--accumulation_steps', type=int, default=1)
 
     parser.add_argument('-ckpt', '--checkpoint', type=str, required=True)
     parser.add_argument('-d', '--data_path', type=str, required=True)
 
-    parser.add_argument('-t', '--train_type', type=TrainType, default=TrainType.CONTINUOUS.value)
+    parser.add_argument('-t', '--train_type', type=TrainType, default=TrainType.BINARISED.value)
     return parser
 
 
