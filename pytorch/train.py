@@ -88,11 +88,11 @@ def main():
             data, labels = data.permute(0, 2, 3, 1).to(device), labels.to(device)
 
             if args.train_type == TrainType.BINARISED:
-                loss = bayesian_flow.discrete_data_continuous_loss(model, data, labels=labels)
+                loss = bayesian_flow.discrete_data_continuous_loss(model, data, labels=labels).loss
 
             elif args.train_type == TrainType.CONTINUOUS:
                 data = data * 2 - 1
-                loss = bayesian_flow.continuous_data_continuous_loss(model, data, labels=labels)
+                loss = bayesian_flow.continuous_data_continuous_loss(model, data, labels=labels).loss
 
             else:
                 raise NotImplementedError(f"training not implemented for {args.train_type}")
